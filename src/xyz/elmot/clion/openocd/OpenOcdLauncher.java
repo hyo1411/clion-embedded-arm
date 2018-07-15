@@ -11,7 +11,7 @@ import com.intellij.execution.process.ProcessHandler;
 import com.intellij.execution.ui.ExecutionConsole;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.application.PathManager;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.project.Project;
@@ -19,6 +19,8 @@ import com.intellij.openapi.util.IconLoader;
 import com.intellij.openapi.util.Key;
 import com.intellij.openapi.util.ThrowableComputable;
 import com.intellij.xdebugger.XDebugSession;
+import com.intellij.xdebugger.XDebugSessionAdapter;
+import com.intellij.xdebugger.XDebugSessionListener;
 import com.jetbrains.cidr.cpp.execution.CMakeAppRunConfiguration;
 import com.jetbrains.cidr.cpp.execution.debugger.backend.GDBDriverConfiguration;
 import com.jetbrains.cidr.cpp.toolchains.CPPDebugger;
@@ -27,11 +29,12 @@ import com.jetbrains.cidr.execution.debugger.CidrDebugProcess;
 import com.jetbrains.cidr.execution.debugger.CidrDebuggerPathManager;
 import com.jetbrains.cidr.execution.debugger.backend.DebuggerCommandException;
 import com.jetbrains.cidr.execution.debugger.backend.DebuggerDriver;
+import com.jetbrains.cidr.execution.debugger.backend.LLValue;
 import com.jetbrains.cidr.execution.debugger.remote.CidrRemoteDebugParameters;
 import com.jetbrains.cidr.execution.debugger.remote.CidrRemoteGDBDebugProcess;
 import com.jetbrains.cidr.execution.testing.CidrLauncher;
-import org.jdesktop.swingx.util.OS;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.concurrency.Promise;
 import xyz.elmot.clion.openocd.OpenOcdComponent.STATUS;
 import xyz.elmot.clion.openocd.OpenOcdConfiguration.DownloadType;
 
@@ -47,6 +50,7 @@ import java.util.concurrent.TimeoutException;
 class OpenOcdLauncher extends CidrLauncher {
 
     private static final Key<AnAction> RESTART_KEY = Key.create(OpenOcdLauncher.class.getName() + "#restartAction");
+    private static final Logger LOG = Logger.getInstance(OpenOcdLauncher.class);
     private final OpenOcdConfiguration openOcdConfiguration;
 
     OpenOcdLauncher(OpenOcdConfiguration openOcdConfiguration) {
@@ -111,12 +115,47 @@ class OpenOcdLauncher extends CidrLauncher {
                         remoteDebugParameters,
                         xDebugSession,
                         commandLineState.getConsoleBuilder(),
-                        project1 -> new Filter[0]);
+                        theProject -> new Filter[]{
+                                new ChartFilter(theProject)
+                        });
         debugProcess.getProcessHandler().addProcessListener(new ProcessAdapter() {
             @Override
             public void processWillTerminate(@NotNull ProcessEvent event, boolean willBeDestroyed) {
                 super.processWillTerminate(event, willBeDestroyed);
                 findOpenOcdAction(project).stopOpenOcd();
+            }
+        });
+        xDebugSession.addSessionListener(new XDebugSessionListener() {
+            @Override
+            public void sessionPaused() {
+                LOG.info("Pause!");
+                Promise<LLValue> stringPromise = debugProcess.postCommand(new CidrDebugProcess.DebuggerCommand<LLValue>() {
+                    @Override
+                    public LLValue call(@NotNull DebuggerDriver debuggerDriver) throws ExecutionException, DebuggerCommandException {
+                        LLValue evaluate = debuggerDriver.evaluate(1, 1, "sinData");
+
+                        debuggerDriver.executeShellCommand("ls",null,null,1000);
+                        return evaluate;
+                    }
+
+                    @Override
+                    public void rejected(@NotNull String s) {
+                        LOG.error(s);
+                    }
+                });
+                try {
+                    LLValue s = stringPromise.blockingGet(1000);
+                    LOG.info(s.toString());
+                } catch (TimeoutException e) {
+                    e.printStackTrace();
+                } catch (java.util.concurrent.ExecutionException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void settingsChanged() {
+                LOG.info("Settings!");
             }
         });
         debugProcess.getProcessHandler().putUserData(RESTART_KEY,
