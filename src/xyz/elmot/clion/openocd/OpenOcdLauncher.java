@@ -19,8 +19,6 @@ import com.intellij.openapi.util.IconLoader;
 import com.intellij.openapi.util.Key;
 import com.intellij.openapi.util.ThrowableComputable;
 import com.intellij.xdebugger.XDebugSession;
-import com.intellij.xdebugger.XDebugSessionAdapter;
-import com.intellij.xdebugger.XDebugSessionListener;
 import com.jetbrains.cidr.cpp.execution.CMakeAppRunConfiguration;
 import com.jetbrains.cidr.cpp.execution.debugger.backend.GDBDriverConfiguration;
 import com.jetbrains.cidr.cpp.toolchains.CPPDebugger;
@@ -29,12 +27,12 @@ import com.jetbrains.cidr.execution.debugger.CidrDebugProcess;
 import com.jetbrains.cidr.execution.debugger.CidrDebuggerPathManager;
 import com.jetbrains.cidr.execution.debugger.backend.DebuggerCommandException;
 import com.jetbrains.cidr.execution.debugger.backend.DebuggerDriver;
-import com.jetbrains.cidr.execution.debugger.backend.LLValue;
+import com.jetbrains.cidr.execution.debugger.backend.DebuggerDriverConfiguration;
+import com.jetbrains.cidr.execution.debugger.backend.gdb.GDBDriver;
 import com.jetbrains.cidr.execution.debugger.remote.CidrRemoteDebugParameters;
 import com.jetbrains.cidr.execution.debugger.remote.CidrRemoteGDBDebugProcess;
 import com.jetbrains.cidr.execution.testing.CidrLauncher;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.concurrency.Promise;
 import xyz.elmot.clion.openocd.OpenOcdComponent.STATUS;
 import xyz.elmot.clion.openocd.OpenOcdConfiguration.DownloadType;
 
@@ -47,7 +45,7 @@ import java.util.concurrent.TimeoutException;
 /**
  * (c) elmot on 19.10.2017.
  */
-class OpenOcdLauncher extends CidrLauncher {
+public class OpenOcdLauncher extends CidrLauncher {
 
     private static final Key<AnAction> RESTART_KEY = Key.create(OpenOcdLauncher.class.getName() + "#restartAction");
     private static final Logger LOG = Logger.getInstance(OpenOcdLauncher.class);
@@ -108,7 +106,13 @@ class OpenOcdLauncher extends CidrLauncher {
             CPPDebugger cppDebugger = CPPDebugger.create(CPPDebugger.Kind.CUSTOM_GDB, gdbPath);
             toolchain.setDebugger(cppDebugger);
         }
-        GDBDriverConfiguration gdbDriverConfiguration = new GDBDriverConfiguration(getProject(), toolchain);
+        GDBDriverConfiguration gdbDriverConfiguration = new GDBDriverConfiguration(getProject(), toolchain) {
+            @Override
+            public @NotNull DebuggerDriver createDriver(DebuggerDriver.@NotNull Handler handler)
+                    throws ExecutionException {
+                return new ExtendedGdbDriver(handler, this);
+            }
+        };
         xDebugSession.stop();
         CidrRemoteGDBDebugProcess debugProcess =
                 new CidrRemoteGDBDebugProcess(gdbDriverConfiguration,
@@ -123,39 +127,6 @@ class OpenOcdLauncher extends CidrLauncher {
             public void processWillTerminate(@NotNull ProcessEvent event, boolean willBeDestroyed) {
                 super.processWillTerminate(event, willBeDestroyed);
                 findOpenOcdAction(project).stopOpenOcd();
-            }
-        });
-        xDebugSession.addSessionListener(new XDebugSessionListener() {
-            @Override
-            public void sessionPaused() {
-                LOG.info("Pause!");
-                Promise<LLValue> stringPromise = debugProcess.postCommand(new CidrDebugProcess.DebuggerCommand<LLValue>() {
-                    @Override
-                    public LLValue call(@NotNull DebuggerDriver debuggerDriver) throws ExecutionException, DebuggerCommandException {
-                        LLValue evaluate = debuggerDriver.evaluate(1, 1, "sinData");
-
-                        debuggerDriver.executeShellCommand("ls",null,null,1000);
-                        return evaluate;
-                    }
-
-                    @Override
-                    public void rejected(@NotNull String s) {
-                        LOG.error(s);
-                    }
-                });
-                try {
-                    LLValue s = stringPromise.blockingGet(1000);
-                    LOG.info(s.toString());
-                } catch (TimeoutException e) {
-                    e.printStackTrace();
-                } catch (java.util.concurrent.ExecutionException e) {
-                    e.printStackTrace();
-                }
-            }
-
-            @Override
-            public void settingsChanged() {
-                LOG.info("Settings!");
             }
         });
         debugProcess.getProcessHandler().putUserData(RESTART_KEY,
@@ -221,7 +192,8 @@ class OpenOcdLauncher extends CidrLauncher {
             xDebugSession.stop();
             OpenOcdComponent openOcdComponent = findOpenOcdAction(commandLineState.getEnvironment().getProject());
             openOcdComponent.stopOpenOcd();
-            Future<STATUS> downloadResult = openOcdComponent.startOpenOcd(openOcdConfiguration, runFile, openOcdConfiguration.getResetType().getCommand());
+            Future<STATUS> downloadResult = openOcdComponent
+                    .startOpenOcd(openOcdConfiguration, runFile, openOcdConfiguration.getResetType().getCommand());
 
             ProgressManager progressManager = ProgressManager.getInstance();
             ThrowableComputable<STATUS, ExecutionException> process = () -> {
@@ -275,4 +247,21 @@ class OpenOcdLauncher extends CidrLauncher {
         return openOcdConfiguration.getProject();
     }
 
+    public static class ExtendedGdbDriver extends GDBDriver {
+        public ExtendedGdbDriver(
+                @NotNull Handler handler,
+                @NotNull DebuggerDriverConfiguration debuggerDriverConfiguration)
+                throws ExecutionException {
+            super(handler, debuggerDriverConfiguration);
+        }
+
+        public @NotNull String extrectValue(@NotNull String s, @NotNull Object... objects)
+                throws ExecutionException {
+            try {
+                return super.sendRequestAndWaitForDone(s, objects).getOutput();
+            } catch (DebuggerCommandException e) {
+                throw new ExecutionException(e);
+            }
+        }
+    }
 }

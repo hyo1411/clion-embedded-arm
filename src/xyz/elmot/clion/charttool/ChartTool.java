@@ -3,19 +3,13 @@ package xyz.elmot.clion.charttool;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowFactory;
-import com.intellij.ui.components.JBList;
-import com.intellij.ui.components.JBTabbedPane;
+import com.intellij.xdebugger.XDebuggerManager;
 import javafx.application.Platform;
 import javafx.embed.swing.JFXPanel;
-import javafx.scene.Scene;
 import javafx.scene.chart.LineChart;
-import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
 import org.jetbrains.annotations.NotNull;
 import xyz.elmot.clion.openocd.ChartFilter;
 
@@ -45,14 +39,18 @@ public class ChartTool implements ToolWindowFactory, ChartFilter.DataListener {
 
     @Override
     public void dataDetected(String name, Collection<Number> data) {
-        if (!initialized) return;
+        if (!initialized) {
+            return;
+        }
         Platform.runLater(() -> {
             XYChart.Series<Number, Number> series;
             if (keep.isSelected()) {
                 String newName;
                 for (int i = 1; true; i++) {
                     newName = name + " " + i;
-                    if (!seriesByName.containsKey(newName)) break;
+                    if (!seriesByName.containsKey(newName)) {
+                        break;
+                    }
                 }
                 series = newSeries(newName);
             } else {
@@ -81,6 +79,7 @@ public class ChartTool implements ToolWindowFactory, ChartFilter.DataListener {
 
     @Override
     public void createToolWindowContent(@NotNull Project project, @NotNull ToolWindow toolWindow) {
+/*
         project.getMessageBus().connect().subscribe(ChartFilter.CHART_DATA_FLOW, this);
         fxPanel = new JFXPanel();
         Platform.runLater(() -> {
@@ -108,5 +107,10 @@ public class ChartTool implements ToolWindowFactory, ChartFilter.DataListener {
             initialized = true;
         });
         toolWindow.getComponent().add(fxPanel);
+*/
+//todo use standard tabbing
+        ChartsPane chartsPane = new ChartsPane(project);
+        project.getMessageBus().connect().subscribe(XDebuggerManager.TOPIC, chartsPane);
+        toolWindow.getComponent().add(chartsPane);
     }
 }
