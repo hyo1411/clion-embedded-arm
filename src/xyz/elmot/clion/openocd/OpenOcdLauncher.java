@@ -119,9 +119,7 @@ public class OpenOcdLauncher extends CidrLauncher {
                         remoteDebugParameters,
                         xDebugSession,
                         commandLineState.getConsoleBuilder(),
-                        theProject -> new Filter[]{
-                                new ChartFilter(theProject)
-                        });
+                        theProject -> new Filter[0]);
         debugProcess.getProcessHandler().addProcessListener(new ProcessAdapter() {
             @Override
             public void processWillTerminate(@NotNull ProcessEvent event, boolean willBeDestroyed) {
@@ -255,7 +253,7 @@ public class OpenOcdLauncher extends CidrLauncher {
             super(handler, debuggerDriverConfiguration);
         }
 
-        public @NotNull String extrectValue(@NotNull String s, @NotNull Object... objects)
+        public @NotNull String extractValue(@NotNull String s, @NotNull Object... objects)
                 throws ExecutionException {
             try {
                 return super.sendRequestAndWaitForDone(s, objects).getOutput();

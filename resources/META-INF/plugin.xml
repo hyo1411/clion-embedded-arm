@@ -71,6 +71,9 @@ The plugin is free, but if you like it, you may support my work with a PayPal do
             <implementation-class>xyz.elmot.clion.openocd.OpenOcdSettings</implementation-class>
         </component>
         <component>
+            <implementation-class>xyz.elmot.clion.charttool.ChartToolPersistence</implementation-class>
+        </component>
+        <component>
             <implementation-class>xyz.elmot.clion.openocd.OpenOcdComponent</implementation-class>
         </component>
     </project-components>
