@@ -3,52 +3,43 @@ package xyz.elmot.clion.charttool;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Computable;
-import com.intellij.openapi.util.Key;
 import com.intellij.ui.DocumentAdapter;
 import com.intellij.ui.SortedListModel;
 import com.intellij.ui.components.JBCheckBox;
 import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBPanel;
-import com.intellij.ui.components.JBTabbedPane;
-import com.intellij.xdebugger.*;
+import com.intellij.xdebugger.XDebugSession;
+import com.intellij.xdebugger.XDebuggerManager;
+import com.intellij.xdebugger.XDebuggerManagerListener;
 import com.intellij.xdebugger.breakpoints.XBreakpoint;
 import com.intellij.xdebugger.breakpoints.XBreakpointListener;
 import com.intellij.xdebugger.breakpoints.XBreakpointManager;
 import com.intellij.xdebugger.breakpoints.XLineBreakpoint;
-import com.intellij.xdebugger.frame.XStackFrame;
 import com.intellij.xdebugger.impl.breakpoints.XBreakpointBase;
-import com.jetbrains.cidr.execution.debugger.CidrDebugProcess;
-import com.jetbrains.cidr.execution.debugger.CidrEvaluator;
-import javafx.scene.chart.XYChart;
 import org.jdesktop.swingx.renderer.DefaultListRenderer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.concurrency.Promise;
-import xyz.elmot.clion.openocd.OpenOcdLauncher;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static javax.swing.border.BevelBorder.LOWERED;
+import static xyz.elmot.clion.charttool.ChartTool.CHART_EXPR_KEY;
 
-public class ChartsPane extends JBTabbedPane implements XDebugSessionListener, XDebuggerManagerListener, XBreakpointListener<XBreakpoint<?>> {
+public class SignalSources extends JBPanel<SignalSources> implements XDebuggerManagerListener, XBreakpointListener<XBreakpoint<?>> {
 
-    /* TODO fix read access */
-    /* TODO refactor*/
+    /*todo select first */
+    /*todo different model*/
     //todo better breakpoints renderer
     //todo checkbox to breakpoints renderer?
-    //todo better var error handling
     //todo keep flag
 
-    public static final Key<ChartExpr> CHART_EXPR_KEY = Key.create(ChartsPane.class.getName() + "#breakpoint");
     private final SortedListModel<XLineBreakpoint<?>> breakpoints = SortedListModel
             .create(XLineBreakpointComparator.COMPARATOR);
     private final JBCheckBox enableBP;
@@ -56,19 +47,17 @@ public class ChartsPane extends JBTabbedPane implements XDebugSessionListener, X
     private final JTextArea breakpointText;
     private final JBList<XLineBreakpoint<?>> bpList;
     private final ChartToolPersistence persistence;
+    private final DebugListener debugListener;
     boolean innerUpdate = false;
-    private ChartsPanel chartsPanel;
 
-    public ChartsPane(Project project) {
-        super(JBTabbedPane.TOP);
+    public SignalSources(Project project, DebugListener debugListener) {
+        super(new BorderLayout(10, 10));
         this.project = project;
+        this.debugListener = debugListener;
         persistence = project.getComponent(ChartToolPersistence.class);
         persistence.setChangeListener(this::setAllBreakpoints);
         setAllBreakpoints();
-        XDebuggerManager.getInstance(this.project).getBreakpointManager().addBreakpointListener(this);
-        JBPanel<JBPanel> breakPointsTab = new JBPanel<>(new BorderLayout(10, 10));
         breakpointText = new JTextArea();
-        breakpointText.setSize(300, 300);
         breakpointText.setBorder(BorderFactory.createBevelBorder(LOWERED));
         JBPanel<JBPanel> bpSettingsPanel = new JBPanel<>(new BorderLayout());
         enableBP = new JBCheckBox("Enable");
@@ -83,13 +72,9 @@ public class ChartsPane extends JBTabbedPane implements XDebugSessionListener, X
         bpSettingsPanel.add(breakpointText, BorderLayout.CENTER);
         bpList = createBpList();
 
-        breakPointsTab.add(bpList, BorderLayout.WEST);
-        breakPointsTab.add(bpSettingsPanel, BorderLayout.CENTER);
+        add(bpList, BorderLayout.WEST);
+        add(bpSettingsPanel, BorderLayout.CENTER);
 
-        chartsPanel = new ChartsPanel();
-        addTab("Chart", chartsPanel);
-        addTab("Breakpoints", breakPointsTab);
-        setSelectedIndex(0);
         invalidate();
 
 
@@ -118,7 +103,12 @@ public class ChartsPane extends JBTabbedPane implements XDebugSessionListener, X
         if (!innerUpdate) {
             XLineBreakpoint<?> breakpoint = bpList.getSelectedValue();
             if (breakpoint != null) {
-                ChartExpr chartData = getOrCreateChartData(breakpoint);
+                ChartExpr chartExpr = breakpoint.getUserData(CHART_EXPR_KEY);
+                if (chartExpr == null) {
+                    chartExpr = new ChartExpr();
+                    breakpoint.putUserData(CHART_EXPR_KEY, chartExpr);
+                }
+                ChartExpr chartData = chartExpr;
                 chartData.enabled = enableBP.isSelected();
                 chartData.expression = breakpointText.getText();
                 persistence.registerChange();
@@ -132,7 +122,8 @@ public class ChartsPane extends JBTabbedPane implements XDebugSessionListener, X
         bpList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         bpList.setBorder(BorderFactory.createBevelBorder(LOWERED));
         //noinspection unchecked
-        bpList.setCellRenderer(new DefaultListRenderer(ChartsPane::getBreakpointName, ChartsPane::breakpointIcon));
+        bpList.setCellRenderer(
+                new DefaultListRenderer(SignalSources::getBreakpointName, SignalSources::breakpointIcon));
         bpList.addListSelectionListener(evt -> {
             XLineBreakpoint<?> selected = bpList.getSelectedValue();
             innerUpdate = true;
@@ -144,7 +135,7 @@ public class ChartsPane extends JBTabbedPane implements XDebugSessionListener, X
             } else {
                 breakpointText.setEnabled(true);
                 enableBP.setEnabled(true);
-                ChartExpr chartData = getChartData(selected);
+                ChartExpr chartData = selected.getUserData(CHART_EXPR_KEY);
                 if (chartData == null) {
                     breakpointText.setText("");
                     enableBP.setSelected(false);
@@ -176,10 +167,10 @@ public class ChartsPane extends JBTabbedPane implements XDebugSessionListener, X
     @Override
     public void currentSessionChanged(@Nullable XDebugSession previousSession, @Nullable XDebugSession currentSession) {
         if (previousSession != null) {
-            previousSession.removeSessionListener(this);
+            previousSession.removeSessionListener(debugListener);
         }
         if (currentSession != null) {
-            currentSession.addSessionListener(this);
+            currentSession.addSessionListener(debugListener);
         } else {
             breakpoints.clear();
         }
@@ -201,87 +192,8 @@ public class ChartsPane extends JBTabbedPane implements XDebugSessionListener, X
     }
 
     @Override
-    public void sessionPaused() {
-        XDebuggerManager debuggerManager = XDebuggerManager.getInstance(project);
-        XDebugSession session = debuggerManager.getCurrentSession();
-        if (session == null) {
-            return;
-        }
-        XStackFrame currentStackFrame = session.getCurrentStackFrame();
-        if (currentStackFrame == null) {
-            return;
-        }
-        XSourcePosition currentPosition = session.getCurrentPosition();
-        if (currentPosition == null) {
-            return;
-        }
-        CidrEvaluator evaluator = (CidrEvaluator) currentStackFrame.getEvaluator();
-        if (evaluator == null) {
-            return;
-        }
-        List<XLineBreakpoint<?>> allXLineBreakpoints = getAllXLineBreakpoints(project);
-        for (XLineBreakpoint<?> breakpoint : allXLineBreakpoints) {
-            if (XSourcePosition.isOnTheSameLine(currentPosition, breakpoint.getSourcePosition())) {
-                ChartExpr chartExpr = breakpoint.getUserData(CHART_EXPR_KEY);
-                if (chartExpr != null && chartExpr.enabled && !"".equals(chartExpr.expression.trim())) {
-                    CidrDebugProcess debugProcess = (CidrDebugProcess) session.getDebugProcess();
-                    Promise<String> sinDataPromise = debugProcess.postCommand(debuggerDriver ->
-                            {
-                                return ((OpenOcdLauncher.ExtendedGdbDriver) debuggerDriver)
-                                        .extractValue("p " + chartExpr.expression.trim());
-                            }
-                    );
-                    sinDataPromise.onError(this::showError);
-                    sinDataPromise.onProcessed(v ->
-                            {
-                                try {
-                                    v = v.replaceAll("^[^{]*\\{|\\s+|\\.{2,}}", "");
-                                    List<XYChart.Data<Number, Number>> data = new ArrayList<>();
-                                    int i = 1;
-                                    for (Scanner scanner = new Scanner(v).useDelimiter(",|\\s|\\{|}(.{2})"); scanner
-                                            .hasNext(); ) {
-                                        data.add(new XYChart.Data<>(i++, Double.parseDouble(scanner.next())));
-                                    }
-                                    chartsPanel.series(chartExpr.expression, data);
-                                    //todo parse error
-                                } catch (Throwable e) {
-                                    showError(e);
-                                }
-                            }
-                    );
-
-                }
-
-            }
-        }
-    }
-
-    protected void showError(Throwable rejected) {
-        String message = rejected.getLocalizedMessage();
-        String title = rejected.getClass().getSimpleName();
-        ApplicationManager.getApplication().invokeLater(() ->
-                com.intellij.openapi.ui.Messages.showErrorDialog(
-                        message, title));
-    }
-
-    @Override
     public void breakpointChanged(@NotNull XBreakpoint<?> breakpoint) {
         bpList.repaint();
-    }
-
-    @Nullable
-    public ChartExpr getChartData(XBreakpoint<?> breakpoint) {
-        return breakpoint.getUserData(CHART_EXPR_KEY);
-    }
-
-    @NotNull
-    public ChartExpr getOrCreateChartData(XBreakpoint<?> breakpoint) {
-        ChartExpr chartExpr = breakpoint.getUserData(CHART_EXPR_KEY);
-        if (chartExpr == null) {
-            chartExpr = new ChartExpr();
-            breakpoint.putUserData(CHART_EXPR_KEY, chartExpr);
-        }
-        return chartExpr;
     }
 
 }

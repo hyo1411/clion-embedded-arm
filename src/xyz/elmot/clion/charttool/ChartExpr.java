@@ -5,5 +5,5 @@ import org.jetbrains.annotations.NotNull;
 public class ChartExpr {
     public boolean enabled;
     @NotNull
-    public String expression = "";//todo optimize
+    public String expression = "";
 }

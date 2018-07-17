@@ -4,11 +4,11 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.PersistentStateComponentWithModificationTracker;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.project.Project;
-import com.intellij.xdebugger.XDebuggerManager;
-import com.intellij.xdebugger.breakpoints.XBreakpointManager;
 import com.intellij.xdebugger.breakpoints.XLineBreakpoint;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import static xyz.elmot.clion.charttool.ChartTool.CHART_EXPR_KEY;
 
 @State(name = "charttool")
 public class ChartToolPersistence implements PersistentStateComponentWithModificationTracker<ChartToolState> {
@@ -30,8 +30,8 @@ public class ChartToolPersistence implements PersistentStateComponentWithModific
     public ChartToolState getState() {
         ChartToolState state = new ChartToolState();
 
-        for (XLineBreakpoint<?> breakpoint : ChartsPane.getAllXLineBreakpoints(project)) {
-            ChartExpr chartData = breakpoint.getUserData(ChartsPane.CHART_EXPR_KEY);
+        for (XLineBreakpoint<?> breakpoint : SignalSources.getAllXLineBreakpoints(project)) {
+            ChartExpr chartData = breakpoint.getUserData(CHART_EXPR_KEY);
             if (chartData != null) {
                 state.addChartBreakPoint(breakpoint.getFileUrl(), breakpoint.getLine(), chartData);
             }
@@ -43,10 +43,10 @@ public class ChartToolPersistence implements PersistentStateComponentWithModific
     public void loadState(@NotNull ChartToolState state) {
         ApplicationManager.getApplication().runReadAction(() -> {
 
-            for (XLineBreakpoint<?> breakpoint : ChartsPane.getAllXLineBreakpoints(project)) {
+            for (XLineBreakpoint<?> breakpoint : SignalSources.getAllXLineBreakpoints(project)) {
                 ChartExpr chartExpr = state.expressions
                         .get(new ChartToolState.Location(breakpoint.getFileUrl(), breakpoint.getLine()));
-                breakpoint.putUserData(ChartsPane.CHART_EXPR_KEY, chartExpr);
+                breakpoint.putUserData(CHART_EXPR_KEY, chartExpr);
             }
             if (changeListener != null) {
                 changeListener.run();
@@ -60,10 +60,6 @@ public class ChartToolPersistence implements PersistentStateComponentWithModific
 
     public void setChangeListener(Runnable changeListener) {
         this.changeListener = changeListener;
-    }
-
-    protected XBreakpointManager getBreakpointManager() {
-        return XDebuggerManager.getInstance(project).getBreakpointManager();
     }
 
 }
