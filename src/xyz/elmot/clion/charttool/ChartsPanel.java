@@ -8,8 +8,6 @@ import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Button;
-import javafx.scene.control.CheckBox;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 
@@ -20,15 +18,12 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ChartsPanel extends JFXPanel {
     private boolean initialized = false;
 
-    private CheckBox keep;
     private Button reset;
     private LineChart<Number, Number> lineChart;
     private Map<String, XYChart.Series<Number, Number>> seriesByName = new ConcurrentHashMap<>();
 
     public ChartsPanel() {
         Platform.runLater(() -> {
-
-            keep = new CheckBox("Keep Old Series");
 
             reset = new Button("Clear");
             reset.setOnAction(e -> clear());
@@ -38,15 +33,14 @@ public class ChartsPanel extends JFXPanel {
             //creating the chart
             lineChart = new LineChart<>(xAxis, yAxis);
             lineChart.setCreateSymbols(false);
-            VBox controls = new VBox(10, keep, reset);
 
-            HBox hBox = new HBox(10, controls, lineChart);
-            hBox.setPadding(new Insets(10));
-            Scene scene = new Scene(hBox);
+            VBox vBox = new VBox(10, lineChart, reset);
+            vBox.setPadding(new Insets(10));
+            Scene scene = new Scene(vBox);
 
             lineChart.setAnimated(false);
-            hBox.setFillHeight(true);
-            HBox.setHgrow(lineChart, Priority.ALWAYS);
+            vBox.setFillWidth(true);
+            VBox.setVgrow(lineChart, Priority.ALWAYS);
             lineChart.setScaleShape(true);
             setScene(scene);
             invalidate();
@@ -54,17 +48,17 @@ public class ChartsPanel extends JFXPanel {
         });
     }
 
-    private void clear() {
+    public void clear() {
         lineChart.getData().clear();
         Platform.runLater(seriesByName::clear);
     }
 
-    public void series(String name, List<XYChart.Data<Number, Number>> data) {
+    public void series(String name, boolean accumulate, List<XYChart.Data<Number, Number>> data) {
         if (!initialized) {
             return;
         }
 
-        if (keep.isSelected()) {
+        if (accumulate) {
 
             String realName;
             for (int i = 1; seriesByName.containsKey(realName = name + "#" + i); ) {
@@ -93,5 +87,9 @@ public class ChartsPanel extends JFXPanel {
             lineChart.getData().add(series);
             seriesByName.put(name, series);
         });
+    }
+
+    public boolean isSampled(String name) {
+        return seriesByName.containsKey(name);
     }
 }

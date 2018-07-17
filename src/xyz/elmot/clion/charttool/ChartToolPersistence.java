@@ -1,12 +1,18 @@
 package xyz.elmot.clion.charttool;
 
-import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.PersistentStateComponentWithModificationTracker;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.project.Project;
 import com.intellij.xdebugger.breakpoints.XLineBreakpoint;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import xyz.elmot.clion.charttool.state.ChartExpr;
+import xyz.elmot.clion.charttool.state.ChartToolState;
+import xyz.elmot.clion.charttool.state.LineState;
+import xyz.elmot.clion.charttool.state.Location;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static xyz.elmot.clion.charttool.ChartTool.CHART_EXPR_KEY;
 
@@ -15,6 +21,7 @@ public class ChartToolPersistence implements PersistentStateComponentWithModific
     private final Project project;
     private long modificationsCount = 0;
     private Runnable changeListener;
+    private final List<ChartExpr> exprs = new ArrayList<>();
 
     public ChartToolPersistence(Project project) {
         this.project = project;
@@ -31,27 +38,33 @@ public class ChartToolPersistence implements PersistentStateComponentWithModific
         ChartToolState state = new ChartToolState();
 
         for (XLineBreakpoint<?> breakpoint : SignalSources.getAllXLineBreakpoints(project)) {
-            ChartExpr chartData = breakpoint.getUserData(CHART_EXPR_KEY);
-            if (chartData != null) {
-                state.addChartBreakPoint(breakpoint.getFileUrl(), breakpoint.getLine(), chartData);
+            LineState lineState = breakpoint.getUserData(CHART_EXPR_KEY);
+
+            if (lineState != null) {
+                Location location = new Location(breakpoint);
+                state.getLocations().put(location, lineState);
             }
         }
+        state.getExprs().clear();
+        state.getExprs().addAll(exprs);
         return state;
     }
 
     @Override
     public void loadState(@NotNull ChartToolState state) {
-        ApplicationManager.getApplication().runReadAction(() -> {
 
-            for (XLineBreakpoint<?> breakpoint : SignalSources.getAllXLineBreakpoints(project)) {
-                ChartExpr chartExpr = state.expressions
-                        .get(new ChartToolState.Location(breakpoint.getFileUrl(), breakpoint.getLine()));
-                breakpoint.putUserData(CHART_EXPR_KEY, chartExpr);
-            }
-            if (changeListener != null) {
-                changeListener.run();
-            }
-        });
+        for (XLineBreakpoint<?> breakpoint : SignalSources.getAllXLineBreakpoints(project)) {
+            LineState lineState = state.getLocations()
+                    .get(new Location(breakpoint));
+            breakpoint.putUserData(CHART_EXPR_KEY, lineState);
+        }
+        exprs.clear();
+        exprs.addAll(state.getExprs());
+
+        if (changeListener != null) {
+            changeListener.run();
+        }
+
     }
 
     public void registerChange() {
@@ -62,4 +75,7 @@ public class ChartToolPersistence implements PersistentStateComponentWithModific
         this.changeListener = changeListener;
     }
 
+    public List<ChartExpr> getExprs() {
+        return exprs;
+    }
 }

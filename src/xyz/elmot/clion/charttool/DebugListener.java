@@ -11,7 +11,11 @@ import com.intellij.xdebugger.frame.XStackFrame;
 import com.jetbrains.cidr.execution.debugger.CidrDebugProcess;
 import com.jetbrains.cidr.execution.debugger.CidrEvaluator;
 import javafx.scene.chart.XYChart;
+import org.antlr.v4.runtime.misc.NotNull;
 import org.jetbrains.concurrency.Promise;
+import xyz.elmot.clion.charttool.state.ChartExpr;
+import xyz.elmot.clion.charttool.state.ExpressionState;
+import xyz.elmot.clion.charttool.state.LineState;
 import xyz.elmot.clion.openocd.OpenOcdLauncher;
 
 import java.util.ArrayList;
@@ -27,11 +31,13 @@ public class DebugListener implements XDebugSessionListener {
     private final Project project;
     private final ChartsPanel chartsPanel;
     private final XDebuggerManager debuggerManager;
+    private ChartToolPersistence persistence;
 
-    public DebugListener(Project project, ChartsPanel chartsPanel) {
+    public DebugListener(Project project, ChartsPanel chartsPanel, ChartToolPersistence persistence) {
         this.project = project;
         this.chartsPanel = chartsPanel;
         debuggerManager = XDebuggerManager.getInstance(project);
+        this.persistence = persistence;
     }
 
     protected void showError(Throwable rejected, String chartExpression) {
@@ -63,21 +69,19 @@ public class DebugListener implements XDebugSessionListener {
         List<XLineBreakpoint<?>> allXLineBreakpoints = getAllXLineBreakpoints(project);
         for (XLineBreakpoint<?> breakpoint : allXLineBreakpoints) {
             if (XSourcePosition.isOnTheSameLine(currentPosition, breakpoint.getSourcePosition())) {
-                ChartExpr chartExpr = breakpoint.getUserData(CHART_EXPR_KEY);
-
-                if (chartExpr != null && chartExpr.enabled) {
-                    String chartExpression = chartExpr.expression.trim();
-                    if (!"".equals(chartExpression)) {
-                        CidrDebugProcess debugProcess = (CidrDebugProcess) session.getDebugProcess();
-                        Promise<String> sinDataPromise = debugProcess.postCommand(debuggerDriver ->
-                                {
-                                    return ((OpenOcdLauncher.ExtendedGdbDriver) debuggerDriver)
-                                            .extractValue("p/r " + chartExpression);
-                                }
-                        );
-                        sinDataPromise.onError(e -> showError(e, chartExpression))
-                                .onProcessed(s -> processGdbOutput(s, chartExpression));
-
+                LineState lineState = breakpoint.getUserData(CHART_EXPR_KEY);
+                if (lineState != null) {
+                    switch (lineState) {
+                        case CLEAR:
+                            chartsPanel.clear();
+                            break;
+                        case SAMPLE:
+                            sampleChart((CidrDebugProcess) session.getDebugProcess());
+                        case CLEAR_AND_SAMPLE:
+                            chartsPanel.clear();
+                            sampleChart((CidrDebugProcess) session.getDebugProcess());
+                            break;
+                        default:
                     }
                 }
 
@@ -85,7 +89,26 @@ public class DebugListener implements XDebugSessionListener {
         }
     }
 
-    private void processGdbOutput(String v, String chartExpression) {
+    private void sampleChart(@NotNull CidrDebugProcess debugProcess) {
+        for (ChartExpr chartExpr : persistence.getExprs()) {
+            String expressionTrim = chartExpr.getExpressionTrim();
+            if (chartExpr.getState() == ExpressionState.DISABLED ||
+                    expressionTrim.isEmpty() ||
+                    (chartExpr.getState() == ExpressionState.SAMPLE_ONCE
+                            && chartsPanel.isSampled(chartExpr.getName()))) {
+                continue;
+            }
+            Promise<String> sinDataPromise = debugProcess.postCommand(debuggerDriver ->
+                    (((OpenOcdLauncher.ExtendedGdbDriver) debuggerDriver)
+                            .requestValue("p/r " + expressionTrim))
+            );
+            sinDataPromise.onError(e -> showError(e, expressionTrim))
+                    .onProcessed(s -> processGdbOutput(s, chartExpr));
+
+        }
+    }
+
+    private void processGdbOutput(String v, ChartExpr chartExpr) {
         if (v != null) {
             try {
                 String strippedV = ARRAY_STRIPPER.matcher(v).replaceAll("");
@@ -95,9 +118,9 @@ public class DebugListener implements XDebugSessionListener {
                         .hasMoreTokens(); ) {
                     data.add(new XYChart.Data<>(i++, Double.parseDouble(tokenizer.nextToken())));
                 }
-                chartsPanel.series(chartExpression, data);
+                chartsPanel.series(chartExpr.getName(), chartExpr.getState() == ExpressionState.ACCUMULATE, data);
             } catch (Throwable e) {
-                showError(e, chartExpression);
+                showError(e, chartExpr.getName());
             }
         }
     }

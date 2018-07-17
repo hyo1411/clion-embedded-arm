@@ -9,10 +9,11 @@ import com.intellij.ui.content.ContentManager;
 import com.intellij.xdebugger.XDebuggerManager;
 import javafx.application.Platform;
 import org.jetbrains.annotations.NotNull;
+import xyz.elmot.clion.charttool.state.LineState;
 
 
 public class ChartTool implements ToolWindowFactory {
-    public static final Key<ChartExpr> CHART_EXPR_KEY = Key.create(ChartTool.class.getName() + "#breakpoint");
+    public static final Key<LineState> CHART_EXPR_KEY = Key.create(ChartTool.class.getName() + "#breakpoint");
 
     static {
         Platform.setImplicitExit(false);
@@ -31,8 +32,9 @@ public class ChartTool implements ToolWindowFactory {
                 factory.createContent(chartsPanel, "Chart", true)
         );
 
-        DebugListener debugListener = new DebugListener(project, chartsPanel);
-        SignalSources sources = new SignalSources(project, debugListener);
+        ChartToolPersistence persistence = project.getComponent(ChartToolPersistence.class);
+        DebugListener debugListener = new DebugListener(project, chartsPanel, persistence);
+        SignalSources sources = new SignalSources(project, debugListener, persistence);
         contentManager.addContent(
                 factory.createContent(sources, "Breakpoints", true)
         );

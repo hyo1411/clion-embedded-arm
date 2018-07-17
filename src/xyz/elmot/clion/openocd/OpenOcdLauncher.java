@@ -253,7 +253,7 @@ public class OpenOcdLauncher extends CidrLauncher {
             super(handler, debuggerDriverConfiguration);
         }
 
-        public @NotNull String extractValue(@NotNull String expression, @NotNull Object... objects) throws
+        public @NotNull String requestValue(@NotNull String expression, @NotNull Object... objects) throws
                 ExecutionException, DebuggerCommandException {
             return super.sendRequestAndWaitForDone(expression, objects).getOutput();
         }

@@ -16,9 +16,12 @@ import com.intellij.xdebugger.breakpoints.XBreakpointListener;
 import com.intellij.xdebugger.breakpoints.XBreakpointManager;
 import com.intellij.xdebugger.breakpoints.XLineBreakpoint;
 import com.intellij.xdebugger.impl.breakpoints.XBreakpointBase;
-import org.jdesktop.swingx.renderer.DefaultListRenderer;
+import org.jdesktop.swingx.JXRadioGroup;
+import org.jdesktop.swingx.renderer.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import xyz.elmot.clion.charttool.state.ChartExpr;
+import xyz.elmot.clion.charttool.state.LineState;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
@@ -50,30 +53,25 @@ public class SignalSources extends JBPanel<SignalSources> implements XDebuggerMa
     private final DebugListener debugListener;
     boolean innerUpdate = false;
 
-    public SignalSources(Project project, DebugListener debugListener) {
+    public SignalSources(Project project, DebugListener debugListener, ChartToolPersistence persistence) {
         super(new BorderLayout(10, 10));
         this.project = project;
         this.debugListener = debugListener;
-        persistence = project.getComponent(ChartToolPersistence.class);
-        persistence.setChangeListener(this::setAllBreakpoints);
+        this.persistence = persistence;
+        this.persistence.setChangeListener(this::setAllBreakpoints);
         setAllBreakpoints();
         breakpointText = new JTextArea();
         breakpointText.setBorder(BorderFactory.createBevelBorder(LOWERED));
-        JBPanel<JBPanel> bpSettingsPanel = new JBPanel<>(new BorderLayout());
-        enableBP = new JBCheckBox("Enable");
-        enableBP.addItemListener(evt -> saveBreakpointData());
         breakpointText.getDocument().addDocumentListener(new DocumentAdapter() {
             @Override
             protected void textChanged(DocumentEvent e) {
                 saveBreakpointData();
             }
         });
-        bpSettingsPanel.add(enableBP, BorderLayout.NORTH);
-        bpSettingsPanel.add(breakpointText, BorderLayout.CENTER);
         bpList = createBpList();
 
         add(bpList, BorderLayout.WEST);
-        add(bpSettingsPanel, BorderLayout.CENTER);
+        add(breakpointText, BorderLayout.CENTER);
 
         invalidate();
 
@@ -118,12 +116,37 @@ public class SignalSources extends JBPanel<SignalSources> implements XDebuggerMa
 
     @NotNull
     protected JBList<XLineBreakpoint<?>> createBpList() {
+
+
         JBList<XLineBreakpoint<?>> bpList = new JBList<>(breakpoints);
+
         bpList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         bpList.setBorder(BorderFactory.createBevelBorder(LOWERED));
         //noinspection unchecked
         bpList.setCellRenderer(
-                new DefaultListRenderer(SignalSources::getBreakpointName, SignalSources::breakpointIcon));
+                new DefaultListRenderer(new ComponentProvider<JRendererPanel>() {
+                    @Override
+                    protected void format(CellContext cellContext) {
+
+                    }
+
+                    @Override
+                    protected void configureState(CellContext cellContext) {
+                        cellContext.getComponent().setBackground(cellContext.getB);
+                    }
+
+                    @Override
+                    protected JRendererPanel createRendererComponent() {
+                        JRendererPanel panel = new JRendererPanel();
+                        panel.add(new JRendererLabel());
+                        panel.add(new JXRadioGroup<>(LineState.values()));
+                        return panel;
+                    }
+                })
+        new DefaultListRenderer(SignalSources::getBreakpointName, SignalSources::breakpointIcon)
+        )
+
+
         bpList.addListSelectionListener(evt -> {
             XLineBreakpoint<?> selected = bpList.getSelectedValue();
             innerUpdate = true;
