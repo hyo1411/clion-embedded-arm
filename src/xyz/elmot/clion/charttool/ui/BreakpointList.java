@@ -40,6 +40,7 @@ public class BreakpointList extends JBTable implements XBreakpointListener<XBrea
         getTableHeader().setResizingColumn(column0);
         IntStream.range(2, getColumnCount()).mapToObj(columnModel::getColumn).forEach(c -> c.setPreferredWidth(60));
         setAutoResizeMode(AUTO_RESIZE_NEXT_COLUMN);
+        setShowColumns(true);
     }
 
     private TableModel createModel() {

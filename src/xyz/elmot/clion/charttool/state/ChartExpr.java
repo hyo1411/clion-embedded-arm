@@ -30,6 +30,10 @@ public class ChartExpr {
         return (name == null || "".equals(name)) ? expression : name;
     }
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
     public String getExpression() {
         return expression;
     }
@@ -51,5 +55,37 @@ public class ChartExpr {
 
     public void setState(@NotNull ExpressionState state) {
         this.state = state;
+    }
+
+    public double getXScale() {
+        return xScale;
+    }
+
+    public void setXScale(double xScale) {
+        this.xScale = xScale;
+    }
+
+    public double getYScale() {
+        return yScale;
+    }
+
+    public void setYScale(double yScale) {
+        this.yScale = yScale;
+    }
+
+    public double getXBase() {
+        return xBase;
+    }
+
+    public void setXBase(double xBase) {
+        this.xBase = xBase;
+    }
+
+    public double getYBase() {
+        return yBase;
+    }
+
+    public void setYBase(double yBase) {
+        this.yBase = yBase;
     }
 }

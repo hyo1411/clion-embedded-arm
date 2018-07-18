@@ -15,7 +15,7 @@ import com.intellij.xdebugger.breakpoints.XBreakpointManager;
 import com.intellij.xdebugger.breakpoints.XLineBreakpoint;
 import org.jetbrains.annotations.Nullable;
 import xyz.elmot.clion.charttool.ui.BreakpointList;
-import xyz.elmot.clion.charttool.ui.ExprList;
+import xyz.elmot.clion.charttool.ui.ExpressionList;
 
 import java.awt.*;
 import java.util.List;
@@ -40,14 +40,14 @@ public class SignalSources extends JBSplitter implements XDebuggerManagerListene
         this.persistence.setChangeListener(this::setAllBreakpoints);
         bpList = new BreakpointList(persistence);
         setAllBreakpoints();
-        ExprList exprList = new ExprList(persistence);
-        exprList.setBorder(IdeBorderFactory.createTitledBorder("Expressions"));
+        ExpressionList expressionList = new ExpressionList(persistence);
+        expressionList.setBorder(IdeBorderFactory.createTitledBorder("Expressions"));
         JBPanel<JBPanel> linesPanel = new JBPanel<>(new BorderLayout());
         linesPanel.add(bpList, BorderLayout.CENTER);
         linesPanel.add(bpList.getTableHeader(), BorderLayout.NORTH);
         linesPanel.setBorder(IdeBorderFactory.createTitledBorder("Breakpoints"));
         setFirstComponent(linesPanel);
-        setSecondComponent(exprList);
+        setSecondComponent(expressionList);
         XDebuggerManager.getInstance(project).getBreakpointManager().addBreakpointListener(bpList);
 
         invalidate();

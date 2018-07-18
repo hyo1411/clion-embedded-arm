@@ -1,10 +1,10 @@
 package xyz.elmot.clion.charttool.state;
 
 public enum ExpressionState {
-    DISABLED("Disabled", "N"),
-    SAMPLE_ONCE("Sample once after clear data", "1"),
-    ALWAYS_REFRESH("Refresh on breakpoint", "R"),
-    ACCUMULATE("Keep All Series", "A");
+    DISABLED("No Sampling", "Skip"),
+    SAMPLE_ONCE("Sample once after clear data", "Once"),
+    ALWAYS_REFRESH("Refresh on breakpoint", "Refresh"),
+    ACCUMULATE("Keep All Series", "Accumulate");
     public final String buttonLabel;
     public final String hint;
 

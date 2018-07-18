@@ -118,7 +118,9 @@ public class DebugListener implements XDebugSessionListener {
                 int i = 1;
                 for (StringTokenizer tokenizer = new StringTokenizer(strippedV, ","); tokenizer
                         .hasMoreTokens(); ) {
-                    data.add(new XYChart.Data<>(i++, Double.parseDouble(tokenizer.nextToken())));
+                    double x = chartExpr.getXBase() + chartExpr.getXScale() * (i++);
+                    double y = chartExpr.getYBase() + chartExpr.getYScale() * Double.parseDouble(tokenizer.nextToken());
+                    data.add(new XYChart.Data<>(x, y));
                 }
                 chartsPanel.series(chartExpr.getName(), chartExpr.getState() == ExpressionState.ACCUMULATE, data);
             } catch (Throwable e) {
