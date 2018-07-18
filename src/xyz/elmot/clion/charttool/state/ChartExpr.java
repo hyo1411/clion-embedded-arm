@@ -12,11 +12,11 @@ public class ChartExpr {
     @Nullable
     private String name = "";
 
-    private double xScale = 1;//todo support
-    private double yScale = 1;//todo support
+    private double xScale = 1;
+    private double yScale = 1;
 
-    private double xBase = 0;//todo support
-    private double yBase = 0;//todo support
+    private double xBase = 0;
+    private double yBase = 0;
 
     @NotNull
     private ExpressionState state = ExpressionState.SAMPLE_ONCE;

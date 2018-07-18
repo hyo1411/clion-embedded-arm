@@ -16,10 +16,7 @@ import org.jetbrains.annotations.NotNull;
 import xyz.elmot.clion.charttool.state.ChartExpr;
 import xyz.elmot.clion.charttool.state.ExpressionState;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -75,7 +72,7 @@ public class ChartsPanel extends JFXPanel {
             } else {
                 data.data.set(index, numbers);
             }
-            name = chartExpr.getName() + " #" + (index + 1);
+            name = accChartName(chartExpr, index);
         } else {
             data.data.clear();
             data.currentIndex.set(0);
@@ -83,21 +80,28 @@ public class ChartsPanel extends JFXPanel {
             name = chartExpr.getName();
         }
 
-
-        ObservableList<XYChart.Data<Number, Number>> lineData = calcLineData(chartExpr, numbers);
-        Platform.runLater(() -> {
-            ObservableList<XYChart.Series<Number, Number>> chartData = lineChart.getData();
-            Optional<XYChart.Series<Number, Number>> foundSeries = chartData
-                    .stream()
-                    .filter(series -> name.equals(series.getName()))
-                    .findFirst();
-            if (foundSeries.isPresent()) {
-                foundSeries.get().setData(lineData);
-            } else {
-                chartData.add(new XYChart.Series<>(name, lineData));
-            }
-        });
+        if (initialized) {
+            ObservableList<XYChart.Data<Number, Number>> lineData = calcLineData(chartExpr, numbers);
+            Platform.runLater(() -> {
+                ObservableList<XYChart.Series<Number, Number>> chartData = lineChart.getData();
+                Optional<XYChart.Series<Number, Number>> foundSeries = chartData
+                        .stream()
+                        .filter(series -> name.equals(series.getName()))
+                        .findFirst();
+                if (foundSeries.isPresent()) {
+                    foundSeries.get().setData(lineData);
+                } else {
+                    chartData.add(new XYChart.Series<>(name, lineData));
+                }
+            });
+        }
     }
+
+    @NotNull
+    protected String accChartName(ChartExpr chartExpr, int index) {
+        return chartExpr.getName() + " #" + (index + 1);
+    }
+
 
     @NotNull
     protected ObservableList<XYChart.Data<Number, Number>> calcLineData(ChartExpr chartExpr, List<Number> numbers) {
@@ -111,8 +115,34 @@ public class ChartsPanel extends JFXPanel {
                 ).collect(Collectors.toList()));
     }
 
+    public void refreshData(Collection<ChartExpr> exprs) {
+        if (!initialized) {
+            return;
+        }
+        List<XYChart.Series<Number, Number>> chartData = new ArrayList<>();
+        for (ChartExpr expr : exprs) {
+            String name = expr.getName();
+            ChartExpressionData chartExpressionData = seriesByName.get(name);
+            if (chartExpressionData == null) {
+                continue;
+            }
+            if (expr.getState() == ExpressionState.ACCUMULATE) {
+                for (int i = 0; i < chartExpressionData.data.size(); i++) {
+                    @NotNull ObservableList<XYChart.Data<Number, Number>> numberNumberSeries =
+                            calcLineData(expr, chartExpressionData.data.get(i));
+                    chartData.add(new XYChart.Series<>(accChartName(expr, i), numberNumberSeries));
+                }
+            } else if (!chartExpressionData.data.isEmpty()) {
+                chartData.add(new XYChart.Series<>(name, calcLineData(expr, chartExpressionData.data.get(0))));
+            }
+        }
+        ObservableList<XYChart.Series<Number, Number>> observableChartData = FXCollections
+                .observableArrayList(chartData);
+        Platform.runLater(() -> lineChart.setData(observableChartData));
+    }
+
     public boolean isSampled(String name) {
-        return lineChart.getData().parallelStream().map(XYChart.Series::getName).anyMatch(name::equals);
+        return seriesByName.containsKey(name);
     }
 
     private static class ChartExpressionData {

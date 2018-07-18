@@ -17,10 +17,12 @@ import java.util.stream.Stream;
 public class ExpressionList extends AddEditRemovePanel<ChartExpr> {
 
     private final ChartToolPersistence persistence;
+    private final Runnable updateRunner;
 
-    public ExpressionList(ChartToolPersistence persistence) {
+    public ExpressionList(ChartToolPersistence persistence, Runnable updateRunner) {
         super(createModel(), persistence.getExprs());
         this.persistence = persistence;
+        this.updateRunner = updateRunner;
         getTable().getColumnModel().getColumn(1).setPreferredWidth(80);
 
     }
@@ -75,7 +77,6 @@ public class ExpressionList extends AddEditRemovePanel<ChartExpr> {
     @Nullable
     @Override
     protected ChartExpr editItem(ChartExpr chartExpr) {
-
         return doEdit(chartExpr);
 
     }
@@ -142,6 +143,7 @@ public class ExpressionList extends AddEditRemovePanel<ChartExpr> {
             chartExpr.setYScale(Double.parseDouble(scaleYField.getText()));
 
             persistence.registerChange();
+            updateRunner.run();
             return chartExpr;
         }
         return null;

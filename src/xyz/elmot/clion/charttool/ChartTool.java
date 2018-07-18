@@ -34,7 +34,7 @@ public class ChartTool implements ToolWindowFactory {
 
         ChartToolPersistence persistence = project.getComponent(ChartToolPersistence.class);
         DebugListener debugListener = new DebugListener(project, chartsPanel, persistence);
-        SignalSources sources = new SignalSources(project, debugListener, persistence);
+        SignalSources sources = new SignalSources(project, debugListener, persistence, chartsPanel);
         contentManager.addContent(
                 factory.createContent(sources, "Sources", true)
         );

@@ -24,23 +24,23 @@ import java.util.stream.Stream;
 
 public class SignalSources extends JBSplitter implements XDebuggerManagerListener {
 
-    //todo better expression renderer
-
     private final Project project;
     private final BreakpointList bpList;
-    private final ChartToolPersistence persistence;
     private final DebugListener debugListener;
 
-    public SignalSources(Project project, DebugListener debugListener, ChartToolPersistence persistence) {
+    public SignalSources(Project project, DebugListener debugListener, ChartToolPersistence persistence,
+                         ChartsPanel chartsPanel) {
         super(false, 0.5f, 0.1f, 0.9f);
         setBorder(JBUI.Borders.empty(15));
         this.project = project;
         this.debugListener = debugListener;
-        this.persistence = persistence;
-        this.persistence.setChangeListener(this::setAllBreakpoints);
+        ChartToolPersistence persistence1 = persistence;
+        persistence1.setChangeListener(this::setAllBreakpoints);
         bpList = new BreakpointList(persistence);
         setAllBreakpoints();
-        ExpressionList expressionList = new ExpressionList(persistence);
+        ExpressionList expressionList = new ExpressionList(persistence,
+                () -> chartsPanel.refreshData(persistence.getExprs()));
+
         expressionList.setBorder(IdeBorderFactory.createTitledBorder("Expressions"));
         JBPanel<JBPanel> linesPanel = new JBPanel<>(new BorderLayout());
         linesPanel.add(bpList, BorderLayout.CENTER);
