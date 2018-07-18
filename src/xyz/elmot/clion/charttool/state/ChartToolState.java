@@ -7,14 +7,7 @@ import java.util.Map;
 
 public class ChartToolState {
 
-    private final Map<Location, LineState> locations = new HashMap<>();
-    private final List<ChartExpr> exprs = new ArrayList<>();
+    public final Map<Location, LineState> locations = new HashMap<>();
+    public final List<ChartExpr> exprs = new ArrayList<>();
 
-    public Map<Location, LineState> getLocations() {
-        return locations;
-    }
-
-    public List<ChartExpr> getExprs() {
-        return exprs;
-    }
 }

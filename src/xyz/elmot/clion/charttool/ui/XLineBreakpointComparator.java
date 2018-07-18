@@ -1,4 +1,4 @@
-package xyz.elmot.clion.charttool;
+package xyz.elmot.clion.charttool.ui;
 
 import com.intellij.xdebugger.breakpoints.XLineBreakpoint;
 

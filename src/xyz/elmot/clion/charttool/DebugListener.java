@@ -77,6 +77,7 @@ public class DebugListener implements XDebugSessionListener {
                             break;
                         case SAMPLE:
                             sampleChart((CidrDebugProcess) session.getDebugProcess());
+                            break;
                         case CLEAR_AND_SAMPLE:
                             chartsPanel.clear();
                             sampleChart((CidrDebugProcess) session.getDebugProcess());

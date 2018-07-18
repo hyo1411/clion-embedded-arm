@@ -49,8 +49,8 @@ public class ChartsPanel extends JFXPanel {
     }
 
     public void clear() {
-        lineChart.getData().clear();
-        Platform.runLater(seriesByName::clear);
+        seriesByName.clear();
+        Platform.runLater(lineChart.getData()::clear);
     }
 
     public void series(String name, boolean accumulate, List<XYChart.Data<Number, Number>> data) {

@@ -108,7 +108,7 @@ public class OpenOcdLauncher extends CidrLauncher {
         }
         GDBDriverConfiguration gdbDriverConfiguration = new GDBDriverConfiguration(getProject(), toolchain) {
             @Override
-            public @NotNull DebuggerDriver createDriver(DebuggerDriver.@NotNull Handler handler)
+            public @NotNull DebuggerDriver createDriver(DebuggerDriver.Handler handler)
                     throws ExecutionException {
                 return new ExtendedGdbDriver(handler, this);
             }

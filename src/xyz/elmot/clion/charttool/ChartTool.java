@@ -36,10 +36,9 @@ public class ChartTool implements ToolWindowFactory {
         DebugListener debugListener = new DebugListener(project, chartsPanel, persistence);
         SignalSources sources = new SignalSources(project, debugListener, persistence);
         contentManager.addContent(
-                factory.createContent(sources, "Breakpoints", true)
+                factory.createContent(sources, "Sources", true)
         );
 
-        XDebuggerManager.getInstance(project).getBreakpointManager().addBreakpointListener(sources);
         project.getMessageBus().connect().subscribe(XDebuggerManager.TOPIC, sources);
 
     }

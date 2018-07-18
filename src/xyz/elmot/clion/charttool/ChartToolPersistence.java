@@ -42,11 +42,11 @@ public class ChartToolPersistence implements PersistentStateComponentWithModific
 
             if (lineState != null) {
                 Location location = new Location(breakpoint);
-                state.getLocations().put(location, lineState);
+                state.locations.put(location, lineState);
             }
         }
-        state.getExprs().clear();
-        state.getExprs().addAll(exprs);
+        state.exprs.clear();
+        state.exprs.addAll(exprs);
         return state;
     }
 
@@ -54,12 +54,11 @@ public class ChartToolPersistence implements PersistentStateComponentWithModific
     public void loadState(@NotNull ChartToolState state) {
 
         for (XLineBreakpoint<?> breakpoint : SignalSources.getAllXLineBreakpoints(project)) {
-            LineState lineState = state.getLocations()
-                    .get(new Location(breakpoint));
+            LineState lineState = state.locations.get(new Location(breakpoint));
             breakpoint.putUserData(CHART_EXPR_KEY, lineState);
         }
         exprs.clear();
-        exprs.addAll(state.getExprs());
+        exprs.addAll(state.exprs);
 
         if (changeListener != null) {
             changeListener.run();
