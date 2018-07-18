@@ -10,7 +10,6 @@ import com.intellij.xdebugger.breakpoints.XLineBreakpoint;
 import com.intellij.xdebugger.frame.XStackFrame;
 import com.jetbrains.cidr.execution.debugger.CidrDebugProcess;
 import com.jetbrains.cidr.execution.debugger.CidrEvaluator;
-import javafx.scene.chart.XYChart;
 import org.antlr.v4.runtime.misc.NotNull;
 import org.jetbrains.concurrency.Promise;
 import xyz.elmot.clion.charttool.state.ChartExpr;
@@ -114,15 +113,13 @@ public class DebugListener implements XDebugSessionListener {
         if (v != null) {
             try {
                 String strippedV = ARRAY_STRIPPER.matcher(v).replaceAll("");
-                List<XYChart.Data<Number, Number>> data = new ArrayList<>();
+                List<Number> data = new ArrayList<>();
                 int i = 1;
-                for (StringTokenizer tokenizer = new StringTokenizer(strippedV, ","); tokenizer
-                        .hasMoreTokens(); ) {
-                    double x = chartExpr.getXBase() + chartExpr.getXScale() * (i++);
-                    double y = chartExpr.getYBase() + chartExpr.getYScale() * Double.parseDouble(tokenizer.nextToken());
-                    data.add(new XYChart.Data<>(x, y));
+                for (StringTokenizer tokenizer = new StringTokenizer(strippedV, ",");
+                     tokenizer.hasMoreTokens(); ) {
+                    data.add(Double.parseDouble(tokenizer.nextToken()));
                 }
-                chartsPanel.series(chartExpr.getName(), chartExpr.getState() == ExpressionState.ACCUMULATE, data);
+                chartsPanel.series(chartExpr, data);
             } catch (Throwable e) {
                 showError(e, chartExpr.getName());
             }
