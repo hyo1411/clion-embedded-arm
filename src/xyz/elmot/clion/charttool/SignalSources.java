@@ -4,6 +4,7 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Computable;
 import com.intellij.ui.IdeBorderFactory;
+import com.intellij.ui.JBSplitter;
 import com.intellij.ui.components.JBPanel;
 import com.intellij.util.ui.JBUI;
 import com.intellij.xdebugger.XDebugSession;
@@ -21,10 +22,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public class SignalSources extends JBPanel<SignalSources> implements XDebuggerManagerListener {
+public class SignalSources extends JBSplitter implements XDebuggerManagerListener {
 
-    /*todo different model*/
-    //todo better breakpoints renderer
+    //todo better expression renderer
 
     private final Project project;
     private final BreakpointList bpList;
@@ -32,19 +32,22 @@ public class SignalSources extends JBPanel<SignalSources> implements XDebuggerMa
     private final DebugListener debugListener;
 
     public SignalSources(Project project, DebugListener debugListener, ChartToolPersistence persistence) {
-        setLayout(new BorderLayout(10, 10));
+        super(false, 0.5f, 0.1f, 0.9f);
         setBorder(JBUI.Borders.empty(15));
         this.project = project;
         this.debugListener = debugListener;
         this.persistence = persistence;
         this.persistence.setChangeListener(this::setAllBreakpoints);
         bpList = new BreakpointList(persistence);
-        bpList.setBorder(IdeBorderFactory.createTitledBorder("Breakpoints", true, JBUI.insets(10)));
         setAllBreakpoints();
         ExprList exprList = new ExprList(persistence);
         exprList.setBorder(IdeBorderFactory.createTitledBorder("Expressions"));
-        add(bpList, BorderLayout.EAST);
-        add(exprList, BorderLayout.CENTER);
+        JBPanel<JBPanel> linesPanel = new JBPanel<>(new BorderLayout());
+        linesPanel.add(bpList, BorderLayout.CENTER);
+        linesPanel.add(bpList.getTableHeader(), BorderLayout.NORTH);
+        linesPanel.setBorder(IdeBorderFactory.createTitledBorder("Breakpoints"));
+        setFirstComponent(linesPanel);
+        setSecondComponent(exprList);
         XDebuggerManager.getInstance(project).getBreakpointManager().addBreakpointListener(bpList);
 
         invalidate();
