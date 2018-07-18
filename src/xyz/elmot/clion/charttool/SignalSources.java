@@ -3,7 +3,6 @@ package xyz.elmot.clion.charttool;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Computable;
-import com.intellij.ui.DocumentAdapter;
 import com.intellij.ui.IdeBorderFactory;
 import com.intellij.ui.components.JBPanel;
 import com.intellij.util.ui.JBUI;
@@ -17,22 +16,15 @@ import org.jetbrains.annotations.Nullable;
 import xyz.elmot.clion.charttool.ui.BreakpointList;
 import xyz.elmot.clion.charttool.ui.ExprList;
 
-import javax.swing.*;
-import javax.swing.event.DocumentEvent;
 import java.awt.*;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static javax.swing.border.BevelBorder.LOWERED;
-
 public class SignalSources extends JBPanel<SignalSources> implements XDebuggerManagerListener {
 
-    /*todo select first */
     /*todo different model*/
     //todo better breakpoints renderer
-    //todo checkbox to breakpoints renderer?
-    //todo keep flag
 
     private final Project project;
     private final BreakpointList bpList;

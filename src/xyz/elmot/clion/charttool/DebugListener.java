@@ -21,6 +21,7 @@ import xyz.elmot.clion.openocd.OpenOcdLauncher;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringTokenizer;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import static xyz.elmot.clion.charttool.ChartTool.CHART_EXPR_KEY;
@@ -71,21 +72,16 @@ public class DebugListener implements XDebugSessionListener {
             if (XSourcePosition.isOnTheSameLine(currentPosition, breakpoint.getSourcePosition())) {
                 LineState lineState = breakpoint.getUserData(CHART_EXPR_KEY);
                 if (lineState != null) {
-                    switch (lineState) {
-                        case CLEAR:
-                            chartsPanel.clear();
-                            break;
-                        case SAMPLE:
-                            sampleChart((CidrDebugProcess) session.getDebugProcess());
-                            break;
-                        case CLEAR_AND_SAMPLE:
-                            chartsPanel.clear();
-                            sampleChart((CidrDebugProcess) session.getDebugProcess());
-                            break;
-                        default:
+                    if (lineState.clearChart) {
+                        chartsPanel.clear();
+                    }
+                    if (lineState.sample) {
+                        sampleChart((CidrDebugProcess) session.getDebugProcess());
+                    }
+                    if (lineState.autoResume) {
+                        session.resume();
                     }
                 }
-
             }
         }
     }
@@ -103,8 +99,13 @@ public class DebugListener implements XDebugSessionListener {
                     (((OpenOcdLauncher.ExtendedGdbDriver) debuggerDriver)
                             .requestValue("p/r " + expressionTrim))
             );
-            sinDataPromise.onError(e -> showError(e, expressionTrim))
-                    .onProcessed(s -> processGdbOutput(s, chartExpr));
+            try {
+                String evalResult = sinDataPromise.onError(e -> showError(e, expressionTrim))
+                        .blockingGet(20, TimeUnit.SECONDS);
+                processGdbOutput(evalResult, chartExpr);
+            } catch (Throwable e) {
+                showError(e, expressionTrim);//todo do not show the dialog
+            }
 
         }
     }
