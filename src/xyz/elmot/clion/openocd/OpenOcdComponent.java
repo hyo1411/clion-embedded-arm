@@ -1,5 +1,6 @@
 package xyz.elmot.clion.openocd;
 
+import com.google.common.base.Strings;
 import com.intellij.execution.ExecutionException;
 import com.intellij.execution.RunContentExecutor;
 import com.intellij.execution.configurations.GeneralCommandLine;
@@ -88,8 +89,12 @@ public class OpenOcdComponent {
             commandLine.addParameters("-c", "telnet_port " + config.getTelnetPort());
         }
         commandLine.addParameters("-f", config.getBoardConfigFile());
-        if (fileToLoad != null) {
+        if (fileToLoad != null && Strings.isNullOrEmpty(config.getBinFile())) {
             String command = "program \"" + fileToLoad.getAbsolutePath().replace(File.separatorChar, '/') + "\"";
+            commandLine.addParameters("-c", command);
+        }
+        if (!Strings.isNullOrEmpty(config.getBinFile())) {
+            String command = "program_esp32 \"" + config.getBinFile().replace(File.separatorChar, '/') + "\"";
             commandLine.addParameters("-c", command);
         }
         if (additionalCommand != null && !additionalCommand.isEmpty()) {

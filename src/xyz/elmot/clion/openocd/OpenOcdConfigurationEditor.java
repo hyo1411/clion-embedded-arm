@@ -31,6 +31,9 @@ public class OpenOcdConfigurationEditor extends CMakeAppRunConfigurationSettings
     private JXRadioGroup<DownloadType> downloadGroup;
     private JXRadioGroup<ResetType> resetGroup;
 
+    private FileChooseInput binFile;
+    private IntegerField binAddress;
+
     @SuppressWarnings("WeakerAccess")
     public OpenOcdConfigurationEditor(Project project, @NotNull CMakeBuildConfigurationHelper cMakeBuildConfigurationHelper) {
         super(project, cMakeBuildConfigurationHelper);
@@ -47,6 +50,8 @@ public class OpenOcdConfigurationEditor extends CMakeAppRunConfigurationSettings
 
         gdbPort.validateContent();
         telnetPort.validateContent();
+        ocdConfiguration.setAddress(binAddress.getValue());
+        ocdConfiguration.setBinFile(binFile.getText().trim());
         ocdConfiguration.setGdbPort(gdbPort.getValue());
         ocdConfiguration.setTelnetPort(telnetPort.getValue());
         ocdConfiguration.setDownloadType(downloadGroup.getSelectedValue());
@@ -58,6 +63,9 @@ public class OpenOcdConfigurationEditor extends CMakeAppRunConfigurationSettings
         super.resetEditorFrom(cMakeAppRunConfiguration);
 
         OpenOcdConfiguration ocd = (OpenOcdConfiguration) cMakeAppRunConfiguration;
+
+        binFile.setText(ocd.getBinFile());
+        binAddress.setValue(ocd.getAddress());
 
         openocdHome = ocd.getProject().getComponent(OpenOcdSettingsState.class).openOcdHome;
 
@@ -79,6 +87,9 @@ public class OpenOcdConfigurationEditor extends CMakeAppRunConfigurationSettings
                 component.setVisible(false);//todo get rid of this hack
             }
         }
+
+        JPanel binPanel = createBinSelector(panel, gridBag);
+        panel.add(binPanel, gridBag.next().coverLine());
 
         JPanel boardPanel = createBoardSelector(panel, gridBag);
         panel.add(boardPanel, gridBag.next().coverLine());
@@ -116,6 +127,16 @@ public class OpenOcdConfigurationEditor extends CMakeAppRunConfigurationSettings
         }));
         boardConfigFile = new FileChooseInput.BoardCfg("Board config", VfsUtil.getUserHomeDir(), this::getOpenocdHome);
         boardPanel.add(boardConfigFile);
+        return boardPanel;
+    }
+
+    @NotNull
+    private JPanel createBinSelector(JPanel panel, GridBag gridBag) {
+        panel.add(new JLabel("Bin file"), gridBag.nextLine().next());
+        JPanel boardPanel = new HorizontalBox();
+        boardPanel.add(binAddress);
+        binFile = new FileChooseInput.BoardCfg("Bin", VfsUtil.getUserHomeDir(), this::getOpenocdHome);
+        boardPanel.add(binFile);
         return boardPanel;
     }
 

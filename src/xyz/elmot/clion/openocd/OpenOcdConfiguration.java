@@ -36,6 +36,9 @@ public class OpenOcdConfiguration extends CMakeAppRunConfiguration implements Ci
     private DownloadType downloadType = DownloadType.ALWAYS;
     private ResetType resetType = DEFAULT_RESET;
 
+    private String binFile;
+    private int address;
+
     public enum DownloadType {
 
         ALWAYS,
@@ -194,5 +197,21 @@ public class OpenOcdConfiguration extends CMakeAppRunConfiguration implements Ci
 
     public void setResetType(ResetType resetType) {
         this.resetType = resetType;
+    }
+
+    public String getBinFile() {
+        return binFile;
+    }
+
+    public void setBinFile(String binFile) {
+        this.binFile = binFile;
+    }
+
+    public int getAddress() {
+        return address;
+    }
+
+    public void setAddress(int address) {
+        this.address = address;
     }
 }
